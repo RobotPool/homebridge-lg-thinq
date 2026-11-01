@@ -20,7 +20,7 @@ LG OAuth key lookup failed: Request failed with status code 404
 * **403**：LG 的 AWS 负载均衡器拒绝 `POST /spx/preLogin` 请求中 Axios 默认的 `axios/<版本>` User-Agent。本版本改为发送 `okhttp/4.12.0`。
 * **404**：LG 下线了 `spx/searchKey`，这个接口以前会把 OAuth 密钥直接交给客户端。现在 LG 自己的登录页改为向服务端请求已经算好的签名（`GET <spx>/signature?kind=oauth2&timestamp=...&key_name=OAUTH_SECRETKEY&sever_type=OP`），本版本采用同样的方式。
 
-此外还包括：校验每一步认证响应，并给出指明具体步骤的错误信息；修正 `thinq auth` 的回调地址；在日志打印的错误中隐去 Token、Cookie 和密码哈希。设备支持与 2.0.0-beta.8 相同，包括洗衣机和烘干机。完整列表见 [CHANGELOG](../CHANGELOG.md)。
+此外还包括：校验登录、签名、授权、Token 交换和刷新这几步的响应，并给出指明具体步骤的错误信息；修正 `thinq auth` 的回调地址，并支持用回调中的授权码换取 Token；在日志打印的错误中隐去 Token、Cookie 和密码哈希。设备支持与 2.0.0-beta.8 相同，包括洗衣机和烘干机。完整列表见 [CHANGELOG](../CHANGELOG.md)。
 
 ## 验证状态
 
@@ -56,8 +56,8 @@ LG OAuth key lookup failed: Request failed with status code 404
 
 注意：
 
-* Homebridge UI 可能把上游版本显示为“更新”。安装它会覆盖本版本。
-* 如果密码登录仍然失败，可以改用 Token 模式：运行 `thinq auth`，在浏览器中用 LG 邮箱/密码账号登录，把最终跳转到的 `https://kr.m.lgaccount.com/login/iabClose?...` 地址粘贴回终端，然后设置 `auth_mode: "token"`，填入输出的 `refresh_token`。
+* 本版本号 `2.0.0-beta.8.robotpool.1` 高于上游 `2.0.0-beta.8`、低于将来的 `2.0.0-beta.9`，所以上游发布新版本时 Homebridge UI 可能会提示更新。安装新版本会覆盖本版本，安装前请确认它已包含登录修复。
+* 如果密码登录仍然失败，可以改用 Token 模式：运行 `thinq auth`，在浏览器中登录，把最终跳转到的 `https://kr.m.lgaccount.com/login/iabClose?...` 地址粘贴回终端（CLI 会用其中的授权码换取 Token，或读取第三方登录 Token），然后设置 `auth_mode: "token"`，填入输出的 `refresh_token`。
 
 ## 回滚
 

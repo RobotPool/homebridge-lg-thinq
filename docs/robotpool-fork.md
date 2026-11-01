@@ -20,7 +20,7 @@ LG OAuth key lookup failed: Request failed with status code 404
 * **403**: LG's AWS load balancer rejects Axios' default `axios/<version>` User-Agent on `POST /spx/preLogin`. This fork sends `okhttp/4.12.0`.
 * **404**: LG removed `spx/searchKey`, which used to hand the OAuth secret key to the client. LG's own login page now asks the server for the finished signature (`GET <spx>/signature?kind=oauth2&timestamp=...&key_name=OAUTH_SECRETKEY&sever_type=OP`). This fork does the same.
 
-Also included: validation of every auth response with step-specific error messages, a working redirect for `thinq auth`, and redaction of tokens, cookies and the hashed password from logged errors. Device support is unchanged from 2.0.0-beta.8, including washers and dryers. Full list: [CHANGELOG](../CHANGELOG.md).
+Also included: validation of the login, signature, authorize, token exchange and refresh responses with step-specific error messages, a working redirect and code exchange for `thinq auth`, and redaction of tokens, cookies and the hashed password from logged errors. Device support is unchanged from 2.0.0-beta.8, including washers and dryers. Full list: [CHANGELOG](../CHANGELOG.md).
 
 ## Verification status
 
@@ -56,8 +56,8 @@ To check the installed version: `npm ls --prefix /var/lib/homebridge homebridge-
 
 Notes:
 
-* Homebridge UI may offer an upstream version as an "update". Installing it replaces this fork.
-* If password login still fails, token mode is an alternative: run `thinq auth`, sign in with an LG email/password account in the browser, paste the final `https://kr.m.lgaccount.com/login/iabClose?...` URL back, and set `auth_mode: "token"` with the printed `refresh_token`.
+* The fork version `2.0.0-beta.8.robotpool.1` sorts above upstream `2.0.0-beta.8` and below a future `2.0.0-beta.9`, so Homebridge UI may offer a newer upstream release as an update. Installing it replaces this fork; check that the release contains the login fix first.
+* If password login still fails, token mode is an alternative: run `thinq auth`, sign in in the browser, paste the final `https://kr.m.lgaccount.com/login/iabClose?...` URL back (the CLI exchanges the authorization code it contains, or reads a third-party token), and set `auth_mode: "token"` with the printed `refresh_token`.
 
 ## Rollback
 

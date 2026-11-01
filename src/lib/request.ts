@@ -1,3 +1,5 @@
+// Modified by the RobotPool maintainers (https://github.com/RobotPool/homebridge-lg-thinq):
+// see NOTICE and the git history for the changes made to this file.
 import axios, { AxiosInstance } from 'axios';
 import {
   ManualProcessNeeded,

@@ -1,3 +1,5 @@
+// Modified by the RobotPool maintainers (https://github.com/RobotPool/homebridge-lg-thinq):
+// see NOTICE and the git history for the changes made to this file.
 import { Logger, PlatformConfig } from 'homebridge';
 import { API } from './API.js';
 import { redactUrlForLog } from './request.js';
