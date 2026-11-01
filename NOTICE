@@ -1,0 +1,29 @@
+Homebridge LG ThinQ - RobotPool maintenance fork
+
+This product is a modified version of Homebridge LG ThinQ
+(https://github.com/nVuln/homebridge-lg-thinq), originally created by
+nVuln and its contributors, and licensed under the Apache License,
+Version 2.0 (see LICENSE). All original copyright notices are retained.
+
+The RobotPool maintenance fork is published at
+https://github.com/RobotPool/homebridge-lg-thinq and is based on upstream
+commit c50f246e7f1945ad9ad227cf8b53ad6fbb224613, whose build output is
+identical to the npm release homebridge-lg-thinq@2.0.0-beta.8.
+
+Files changed by the RobotPool maintainers (see git history for details):
+
+  src/lib/Auth.ts          EMP OAuth signing via LG's /spx/signature service,
+                           response validation and clearer auth errors
+  src/lib/request.ts       non-Axios default User-Agent; request details
+                           hidden from logged and serialized errors
+  src/cli.ts               accepted browser login redirect; message-only errors
+  tsconfig.json            exclude src/testing from the build
+  CHANGELOG.md, README.md, package.json, NOTICE, docs/robotpool-fork*.md
+
+Files added by the RobotPool maintainers:
+
+  src/lib/Auth.oauth.spec.ts, src/lib/API.auth.spec.ts,
+  src/testing/fakeLgCloud.ts (test-only, not published)
+
+This fork is not affiliated with or endorsed by LG Electronics.
+"LG" and "ThinQ" are trademarks of LG Electronics Inc.
