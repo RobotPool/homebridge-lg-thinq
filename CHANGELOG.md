@@ -1,5 +1,18 @@
 # Change Log
 
+## Unreleased
+
+### Authentication
+
+* Fixed LG account (email/password) login after LG retired `spx/searchKey` (`LG OAuth key lookup failed: Request failed with status code 404`). The EMP OAuth authorize request is now signed by LG's SPX signature service (`GET <spx>/signature?kind=oauth2&timestamp=...&key_name=OAUTH_SECRETKEY&sever_type=OP`), the same call LG's own login page makes, instead of a locally computed HMAC with a downloaded key.
+* Fixed `LG pre-login failed: Request failed with status code 403`: LG's load balancer blocks Axios' default `axios/<version>` User-Agent, so requests now identify as `okhttp/4.12.0` unless a request sets its own User-Agent.
+* Validated the signature, authorize, token exchange and token refresh responses and report failures with the failing step and LG's error message (`LG OAuth signature request failed`, `LG OAuth authorization failed`, `LG token exchange failed`, `LG token refresh failed`). Network errors during refresh stay `NotConnectedError` so existing retry handling still applies.
+* `thinq auth` now uses the `https://kr.m.lgaccount.com/login/iabClose` redirect that LG accepts, and keeps the regional login host from the LG gateway instead of forcing `us.m.lgaccount.com`.
+
+### Security
+
+* Request errors no longer expose request headers (`Authorization`, `x-emp-token`, `x-thinq-token`), form bodies (hashed password, refresh token), raw requests or response cookies when they are logged or serialized with `JSON.stringify`. The CLI prints only error messages.
+
 ## v2.0.0
 
 ### Compatibility and Packaging

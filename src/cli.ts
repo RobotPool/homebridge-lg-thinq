@@ -2,7 +2,7 @@
 
 import { Command } from 'commander';
 import { API } from './lib/API.js';
-import { Auth } from './lib/Auth.js';
+import { Auth, BROWSER_LOGIN_REDIRECT_URI } from './lib/Auth.js';
 import { URL } from 'url';
 import * as readline from 'readline';
 import type { Logger } from 'homebridge';
@@ -16,6 +16,9 @@ const input = (question: string) => new Promise<string>((resolve) => {
     resolve(answer);
   });
 });
+
+// Print only the message: error objects can carry request details.
+const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 const program = new Command();
 
@@ -49,7 +52,7 @@ program
       console.info('Your refresh_token:', session.refreshToken);
     } catch (err) {
 
-      console.error(err);
+      console.error(errorText(err));
     }
 
     process.exit(0);
@@ -65,11 +68,10 @@ program
     const auth = new Auth(gateway, logger);
 
     const loginUrl = new URL(await auth.getLoginUrl());
-    const origin = loginUrl.origin;
-    loginUrl.host = 'us.m.lgaccount.com';
     loginUrl.searchParams.set('division', 'ha'); // enable Apple ID
-    loginUrl.searchParams.set('redirect_uri', origin + '/login/iabClose');
-    loginUrl.searchParams.set('callback_url', origin + '/login/iabClose');
+    // LG rejects other redirect URIs with "Mismatching Redirect URI" (nVuln/homebridge-lg-thinq#402)
+    loginUrl.searchParams.set('redirect_uri', BROWSER_LOGIN_REDIRECT_URI);
+    loginUrl.searchParams.set('callback_url', BROWSER_LOGIN_REDIRECT_URI);
 
 
     console.info('Log in here:', loginUrl.href);
@@ -113,7 +115,7 @@ program
       console.info('Your refresh_token:', session.refreshToken);
     } catch (err) {
 
-      console.error(err);
+      console.error(errorText(err));
     }
 
     process.exit(0);
