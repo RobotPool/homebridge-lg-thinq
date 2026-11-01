@@ -1,8 +1,16 @@
+// Modified by the RobotPool maintainers (https://github.com/RobotPool/homebridge-lg-thinq):
+// see NOTICE and the git history for the changes made to this file.
 import crypto from 'crypto';
 import { DateTime } from 'luxon';
 import qs from 'qs';
 import { URL } from 'url';
-import { AuthenticationError, ManualProcessNeededErrorCode, TokenError } from '../errors/index.js';
+import {
+  AuthenticationError,
+  ManualProcessNeededErrorCode,
+  NotConnectedError,
+  TokenError,
+  TokenExpiredError,
+} from '../errors/index.js';
 import * as constants from './constants.js';
 import { Gateway } from './Gateway.js';
 import { requestClient } from './request.js';
@@ -58,12 +66,111 @@ export function authErrorMessage(err: unknown, fallback: string): string {
     || fallback;
 }
 
-function authError(context: string, err: unknown): AuthenticationError {
+function authError<T extends Error>(
+  context: string,
+  err: unknown,
+  ErrorClass: new (message: string) => T = AuthenticationError as unknown as new (message: string) => T,
+): T {
   const message = authErrorMessage(err, 'Request failed.');
-  const error = new AuthenticationError(`${context}: ${message}`);
+  const error = new ErrorClass(`${context}: ${message}`);
   (error as Error & { cause?: unknown }).cause = err;
 
   return error;
+}
+
+/**
+ * EMP OAuth endpoint that turns an LG account login session into an
+ * authorization code. Requests to it are signed with the `OAUTH_SECRETKEY`
+ * of LG's SPX login service.
+ */
+export const EMP_OAUTH_AUTHORIZE_URL = 'https://emp-oauth.lgecloud.com/emp/oauth2/authorize/empsession';
+
+/**
+ * Redirect URI that LG accepts for the browser login used by `thinq auth`
+ * (nVuln/homebridge-lg-thinq#402, ollo69/ha-smartthinq-sensors#1016).
+ */
+export const BROWSER_LOGIN_REDIRECT_URI = 'https://kr.m.lgaccount.com/login/iabClose';
+
+/**
+ * Query parameters of the SPX signature service. LG removed
+ * `searchKey?key_name=OAUTH_SECRETKEY&sever_type=OP`, which used to hand the
+ * secret to the client, and now signs the string server-side. The values mirror
+ * `LGMNetwork.loadSignature` in LG's own SPX login page
+ * (`/spx/resources/js/net/network.js`, `/spx/resources/js/controller/oauth2.js`),
+ * including LG's `sever_type` spelling.
+ */
+export const EMP_SIGNATURE_PARAMS = {
+  kind: 'oauth2',
+  key_name: 'OAUTH_SECRETKEY',
+  sever_type: 'OP',
+} as const;
+
+// Base64 HMAC as returned by the signature service (28 characters for HMAC-SHA1).
+// Anything else, such as the HTML 404 page LG serves for removed routes, is rejected.
+const EMP_SIGNATURE_PATTERN = /^[A-Za-z0-9+/]{16,128}={0,2}$/;
+
+function httpsBaseUrl(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:') {
+      return null;
+    }
+
+    return url.href.endsWith('/') ? url.href : url.href + '/';
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads `code` and `oauth2_backend_url` from the redirect URI returned by the EMP
+ * authorize call. LG sometimes percent-encodes the redirect URI once more, so a
+ * second, decoded attempt is made when the first parse finds no code.
+ */
+export function parseAuthorizeRedirect(redirectUri: string): { code: string; backendUrl: string | null } {
+  const candidates = [redirectUri];
+  try {
+    const decoded = decodeURIComponent(redirectUri);
+    if (decoded !== redirectUri) {
+      candidates.push(decoded);
+    }
+  } catch {
+    // keep the original value only
+  }
+
+  for (const candidate of candidates) {
+    let url: URL;
+    try {
+      url = new URL(candidate);
+    } catch {
+      continue;
+    }
+
+    const code = stringValue(url.searchParams.get('code'));
+    if (code) {
+      const backend = url.searchParams.get('oauth2_backend_url');
+      const backendUrl = httpsBaseUrl(backend);
+      if (backend && !backendUrl) {
+        throw new TokenError('LG OAuth authorization failed: invalid oauth2_backend_url in redirect.');
+      }
+
+      return { code, backendUrl };
+    }
+  }
+
+  throw new TokenError('LG OAuth authorization failed: redirect did not include an authorization code.');
+}
+
+// LG access tokens last one hour; used when a token response omits or garbles `expires_in`.
+export const DEFAULT_TOKEN_LIFETIME_SECONDS = 3600;
+
+function tokenExpiresIn(value: unknown): number {
+  const seconds = typeof value === 'number' ? value : parseInt(String(value ?? ''), 10);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : DEFAULT_TOKEN_LIFETIME_SECONDS;
 }
 
 /**
@@ -147,12 +254,9 @@ export class Auth {
       throw new AuthenticationError(message);
     });
 
-    // dynamic get secret key for emp signature
-    const empSearchKeyUrl = this.gateway.login_base_url + 'searchKey?key_name=OAUTH_SECRETKEY&sever_type=OP';
-    const secretKey = await requestClient.get(empSearchKeyUrl).then(res => res.data).then(data => data.returnData)
-      .catch(err => {
-        throw authError('LG OAuth key lookup failed', err);
-      });
+    if (!stringValue(account?.loginSessionID) || !stringValue(account?.userID)) {
+      throw new AuthenticationError('LG account login failed: response did not include a login session.');
+    }
 
     const timestamp = DateTime.utc().toRFC2822();
     const empData = {
@@ -164,8 +268,9 @@ export class Auth {
       state: '12345',
       username: account.userID,
     };
-    const empUrl = new URL('https://emp-oauth.lgecloud.com/emp/oauth2/authorize/empsession?' + qs.stringify(empData));
-    const signature = this.signature(`${empUrl.pathname}${empUrl.search}\n${timestamp}`, secretKey);
+    const empUrl = new URL(EMP_OAUTH_AUTHORIZE_URL + '?' + qs.stringify(empData));
+    // The string to sign is the exact path and query we send, then the date header value.
+    const signature = await this.requestEmpSignature(`${empUrl.pathname}${empUrl.search}\n${timestamp}`);
     const empHeaders = {
       'lgemp-x-app-key': constants.OAUTH_CLIENT_KEY,
       'lgemp-x-date': timestamp,
@@ -187,22 +292,38 @@ export class Auth {
     }).then(res => res.data).catch(err => {
       throw authError('LG OAuth authorization failed', err);
     });
-    if (authorize.status !== 1) {
-      throw new TokenError(authorize.message || authorize);
+    if (authorize?.status !== 1 || authorize.lgoauth_error_code || typeof authorize.redirect_uri !== 'string') {
+      const reason = stringValue(authorize?.message) || stringValue(authorize?.lgoauth_error_code) || 'unexpected response from LG.';
+      const error = new TokenError(`LG OAuth authorization failed: ${reason}`);
+      (error as Error & { code?: string }).code = stringValue(authorize?.lgoauth_error_code) || undefined;
+      throw error;
     }
 
-    const redirect_uri = new URL(authorize.redirect_uri);
+    const redirect = parseAuthorizeRedirect(authorize.redirect_uri);
 
+    return this.exchangeAuthorizationCode(redirect.code, redirect.backendUrl, empData.redirect_uri);
+  }
+
+  /**
+   * Exchanges an EMP OAuth authorization code for access and refresh tokens.
+   *
+   * @param code - The authorization code from the authorize redirect.
+   * @param backendUrl - The `oauth2_backend_url` from the redirect, if any.
+   * @param redirectUri - The redirect URI the code was issued for.
+   * @returns A promise that resolves with a `Session` instance.
+   */
+  public async exchangeAuthorizationCode(code: string, backendUrl: string | null, redirectUri: string) {
+    const timestamp = DateTime.utc().toRFC2822();
     const tokenData = {
-      code: redirect_uri.searchParams.get('code'),
+      code,
       grant_type: 'authorization_code',
-      redirect_uri: empData.redirect_uri,
+      redirect_uri: redirectUri,
     };
 
     const requestUrl = '/oauth/1.0/oauth2/token?' + qs.stringify(tokenData);
 
     const res = await requestClient.post(
-      redirect_uri.searchParams.get('oauth2_backend_url') + 'oauth/1.0/oauth2/token',
+      (backendUrl || this.lgeapi_url) + 'oauth/1.0/oauth2/token',
       qs.stringify(tokenData),
       {
         headers: {
@@ -218,14 +339,52 @@ export class Auth {
       throw authError('LG token exchange failed', err);
     });
     const token = res.data;
+    const accessToken = stringValue(token?.access_token);
+    const refreshToken = stringValue(token?.refresh_token);
+    const expiresIn = tokenExpiresIn(token?.expires_in);
 
-    this.lgeapi_url = token.oauth2_backend_url || this.lgeapi_url;
+    if (!accessToken || !refreshToken) {
+      throw new TokenError('LG token exchange failed: response did not include access and refresh tokens.');
+    }
+
+    this.lgeapi_url = httpsBaseUrl(stringValue(token.oauth2_backend_url)) || backendUrl || this.lgeapi_url;
 
     return new Session(
-      token.access_token,
-      token.refresh_token,
-      Session.expiryTimestampFromExpiresIn(parseInt(token.expires_in, 10)),
+      accessToken,
+      refreshToken,
+      Session.expiryTimestampFromExpiresIn(expiresIn),
     );
+  }
+
+  /**
+   * Asks LG's SPX signature service to sign an EMP OAuth request.
+   *
+   * @param message - The string to sign: request path and query, a newline, then the `lgemp-x-date` value.
+   * @returns The Base64 signature for the `lgemp-x-signature` header.
+   */
+  public async requestEmpSignature(message: string): Promise<string> {
+    const signatureUrl = this.gateway.login_base_url + 'signature?' + qs.stringify({
+      kind: EMP_SIGNATURE_PARAMS.kind,
+      timestamp: message,
+      key_name: EMP_SIGNATURE_PARAMS.key_name,
+      sever_type: EMP_SIGNATURE_PARAMS.sever_type,
+    });
+
+    const body = await requestClient.get(signatureUrl, {
+      headers: { 'Accept': 'text/plain, */*' },
+      responseType: 'text',
+      // keep the raw body: the service answers with plain text, not JSON
+      transformResponse: [(data: unknown) => data],
+    }).then(res => res.data).catch(err => {
+      throw authError('LG OAuth signature request failed', err);
+    });
+
+    const signature = typeof body === 'string' ? body.trim() : '';
+    if (!EMP_SIGNATURE_PATTERN.test(signature)) {
+      throw new AuthenticationError('LG OAuth signature request failed: unexpected response from the LG signature service.');
+    }
+
+    return signature;
   }
 
   /**
@@ -327,13 +486,13 @@ export class Auth {
       .then(res => res.data)
       .then(data => data.lgedmRoot.jsessionId)
       .catch(err => {
+        const message = typeof err?.message === 'string' ? err.message : String(err);
         this.logger.debug(
-          err.message.startsWith(ManualProcessNeededErrorCode)
+          message.startsWith(ManualProcessNeededErrorCode)
             ? 'Please open the native LG App and sign in to your account to see what happened,'
             + ' maybe new agreement need your accept. Then try restarting Homebridge.'
-            : err.message,
+            : message,
         );
-        this.logger.debug(err);
         this.logger.info('Failed to login to old thinq v1 gateway. See debug logs for more details. Continuing anyways.');
       });
   }
@@ -359,7 +518,7 @@ export class Auth {
         },
       }).then(res => res.data.lgedmRoot);
 
-      this.lgeapi_url = gateway.oauthUri + '/';
+      this.lgeapi_url = httpsBaseUrl(stringValue(gateway?.oauthUri)) || this.lgeapi_url;
     } catch (err) {
       // ignore this error
     }
@@ -383,9 +542,22 @@ export class Auth {
       'Accept': 'application/json',
       'Content-Type': 'application/x-www-form-urlencoded',
     };
-    const resp = await requestClient.post(tokenUrl, qs.stringify(data), { headers }).then(resp => resp.data);
+    const resp = await requestClient.post(tokenUrl, qs.stringify(data), { headers }).then(resp => resp.data).catch(err => {
+      // keep network and expiry errors as they are so callers can still retry on them
+      if (err instanceof NotConnectedError || err instanceof TokenExpiredError) {
+        throw err;
+      }
 
-    session.newTokenFromExpiresIn(resp.access_token, parseInt(resp.expires_in, 10));
+      throw authError('LG token refresh failed', err, TokenError);
+    });
+
+    const accessToken = stringValue(resp?.access_token);
+    const expiresIn = tokenExpiresIn(resp?.expires_in);
+    if (!accessToken) {
+      throw new TokenError('LG token refresh failed: response did not include a new access token.');
+    }
+
+    session.newTokenFromExpiresIn(accessToken, expiresIn);
 
     return session;
   }

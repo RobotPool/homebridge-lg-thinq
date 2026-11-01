@@ -1,3 +1,5 @@
+// Modified by the RobotPool maintainers (https://github.com/RobotPool/homebridge-lg-thinq):
+// see NOTICE and the git history for the changes made to this file.
 import axios, { AxiosInstance } from 'axios';
 import {
   ManualProcessNeeded,
@@ -35,8 +37,76 @@ function errorWithCause<T extends Error>(error: T, cause: unknown): T {
   return error;
 }
 
+/**
+ * LG's AWS load balancer in front of the SPX login service rejects POST requests
+ * that carry Axios' default `axios/<version>` User-Agent with an HTML 403
+ * (nVuln/homebridge-lg-thinq#402). Identify as the HTTP client of the Android
+ * ThinQ app instead, which matches the `X-Device-Platform: ADR` headers we send.
+ */
+export const DEFAULT_USER_AGENT = 'okhttp/4.12.0';
+
+/**
+ * Hide request details from errors before they reach logs.
+ *
+ * Axios errors carry the full request config (headers such as `Authorization`,
+ * `x-emp-token`, `x-thinq-token`, form bodies with `refresh_token` or the
+ * hashed password), the raw `ClientRequest` and the response headers
+ * (`set-cookie`). `util.inspect`, which Homebridge's logger and `console` use,
+ * prints every enumerable property, so these fields are made non-enumerable.
+ * They stay readable for code that needs them.
+ */
+export function hideSensitiveRequestDetails<T>(err: T): T {
+  const hide = (target: unknown, keys: string[]) => {
+    if (target === null || typeof target !== 'object') {
+      return;
+    }
+
+    for (const key of keys) {
+      const descriptor = Object.getOwnPropertyDescriptor(target, key);
+      if (descriptor && descriptor.enumerable && descriptor.configurable) {
+        Object.defineProperty(target, key, { ...descriptor, enumerable: false });
+      }
+    }
+  };
+
+  hide(err, ['config', 'request']);
+  hide((err as { response?: unknown } | null)?.response, ['config', 'request', 'headers']);
+
+  // AxiosError#toJSON serializes the whole request config, so JSON.stringify would bring it back
+  if (err !== null && typeof err === 'object' && typeof (err as { toJSON?: unknown }).toJSON === 'function') {
+    Object.defineProperty(err, 'toJSON', {
+      configurable: true,
+      enumerable: false,
+      writable: true,
+      value: function (this: { name?: unknown; message?: unknown; code?: unknown; status?: unknown; response?: { status?: unknown } }) {
+        return {
+          name: this.name,
+          message: this.message,
+          code: this.code,
+          status: this.response?.status ?? this.status,
+        };
+      },
+    });
+  }
+
+  return err;
+}
+
+/**
+ * Request URL for debug logs: drops the query string (the SPX signature request
+ * carries the account id in it) and the account id in the EMP session path.
+ */
+export function redactUrlForLog(url: string | undefined): string {
+  if (!url) {
+    return '';
+  }
+
+  return url.split(/[?#]/, 1)[0].replace(/(\/account\/session\/)[^/]+/, '$1<redacted>');
+}
+
 const client = axios.create();
 client.defaults.timeout = 60000; // 60s timeout
+client.defaults.headers.common['User-Agent'] = DEFAULT_USER_AGENT;
 
 client.interceptors.request.use((config) => {
   return new Promise((resolve) => {
@@ -89,6 +159,8 @@ client.interceptors.response.use((response) => {
 
   return response;
 }, (err) => {
+  hideSensitiveRequestDetails(err);
+
   if (!err.response) {
     throw errorWithCause(new NotConnectedError(responseErrorMessage(err, 'Network request failed.')), err);
   } else if (err.response.data?.resultCode === '9999') {

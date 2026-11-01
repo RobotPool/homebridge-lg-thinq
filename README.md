@@ -4,6 +4,8 @@
 
 # Homebridge LG ThinQ
 
+> **RobotPool maintenance fork.** This repository is a fork of [nVuln/homebridge-lg-thinq](https://github.com/nVuln/homebridge-lg-thinq) that fixes LG account login (`LG pre-login failed: ... 403`, `LG OAuth key lookup failed: ... 404`) on top of 2.0.0-beta.8. Installation, rollback and known limitations: [docs/robotpool-fork.md](docs/robotpool-fork.md) | [简体中文](docs/robotpool-fork.zh-CN.md). The badges and links below refer to the upstream project.
+
 [![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
 [![npm](https://img.shields.io/npm/v/homebridge-lg-thinq/latest?label=latest)](https://www.npmjs.com/package/homebridge-lg-thinq)
 [![npm](https://img.shields.io/npm/dt/homebridge-lg-thinq)](https://www.npmjs.com/package/homebridge-lg-thinq)

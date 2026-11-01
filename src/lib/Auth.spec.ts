@@ -94,7 +94,7 @@ describe('Auth', () => {
         loginSessionID: 'session123',
       },
     };
-    const mockSecretKeyResponse = { returnData: 'mockSecretKey' };
+    const mockSignatureResponse = 'bW9ja1NpZ25hdHVyZVZhbHVlMTIzNA==';
     const mockAuthorizeResponse = {
       status: 1,
       redirect_uri: 'https://example.com/oauth?code=mockCode',
@@ -120,7 +120,7 @@ describe('Auth', () => {
       .mockResolvedValueOnce({ data: mockTokenResponse }); // Mock token response
 
     jest.spyOn(requestClient, 'get')
-      .mockResolvedValueOnce({ data: mockSecretKeyResponse }) // Mock secret key response
+      .mockResolvedValueOnce({ data: mockSignatureResponse }) // Mock /spx/signature response
       .mockResolvedValueOnce({ data: mockAuthorizeResponse }); // Mock authorize response
 
     const session = await auth.loginStep2('testUser', 'mockEncryptedPassword');

@@ -1,5 +1,8 @@
+// Modified by the RobotPool maintainers (https://github.com/RobotPool/homebridge-lg-thinq):
+// see NOTICE and the git history for the changes made to this file.
 import { Logger, PlatformConfig } from 'homebridge';
 import { API } from './API.js';
+import { redactUrlForLog } from './request.js';
 import { LGThinQHomebridgePlatform } from '../platform.js';
 import { Device, devicesFromList } from './Device.js';
 import { PlatformType } from './constants.js';
@@ -37,7 +40,7 @@ export class ThinQ {
   ) {
     this.api = new API(this.config.country, this.config.language, logger);
     this.api.httpClient.interceptors.response.use(response => {
-      this.logger.debug('[request]', response.config.method, response.config.url);
+      this.logger.debug('[request]', response.config.method, redactUrlForLog(response.config.url));
       return response;
     }, err => {
       return Promise.reject(err);
