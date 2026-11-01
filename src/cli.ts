@@ -2,7 +2,7 @@
 
 import { Command } from 'commander';
 import { API } from './lib/API.js';
-import { Auth, BROWSER_LOGIN_REDIRECT_URI } from './lib/Auth.js';
+import { Auth, BROWSER_LOGIN_REDIRECT_URI, parseAuthorizeRedirect } from './lib/Auth.js';
 import { URL } from 'url';
 import * as readline from 'readline';
 import type { Logger } from 'homebridge';
@@ -84,6 +84,22 @@ program
     if (refresh_token) {
 
       console.info('Your refresh_token:', refresh_token);
+      process.exit(0);
+      return;
+    }
+
+    // LG email/password accounts come back with an authorization code instead of a token
+    if (url.searchParams.get('code')) {
+      try {
+        const redirect = parseAuthorizeRedirect(url.href);
+        const session = await auth.exchangeAuthorizationCode(redirect.code, redirect.backendUrl, BROWSER_LOGIN_REDIRECT_URI);
+
+        console.info('Your refresh_token:', session.refreshToken);
+      } catch (err) {
+
+        console.error(errorText(err));
+      }
+
       process.exit(0);
       return;
     }

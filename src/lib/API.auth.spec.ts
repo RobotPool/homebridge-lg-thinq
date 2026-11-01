@@ -134,7 +134,19 @@ describe('API authentication with a simulated LG cloud', () => {
     const api = new API('US', 'en-US', makeLogger(logs));
     api.setRefreshToken('revoked-refresh-token');
 
-    await expect(api.ready()).rejects.toThrow('LG token refresh failed: The refresh token is invalid.');
+    let caught: unknown;
+    try {
+      await api.ready();
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toBe('LG token refresh failed: The refresh token is invalid.');
+    const text = logs.join('\n') + inspect(caught, { depth: Infinity }) + JSON.stringify(caught);
+    for (const secret of ['revoked-refresh-token', SECRETS.cookie, constants.API_KEY]) {
+      expect(text).not.toContain(secret);
+    }
   });
 
   test('request errors logged by the API do not contain tokens, cookies or the password', async () => {
