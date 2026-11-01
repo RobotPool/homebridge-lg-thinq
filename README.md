@@ -1,15 +1,23 @@
-<p align="center">
+<div align="center">
+
 <img src="https://raw.githubusercontent.com/homebridge/branding/latest/logos/homebridge-wordmark-logo-vertical.png" width="150">
-</p>
 
 # Homebridge LG ThinQ
 
-> **RobotPool maintenance fork.** This repository is a fork of [nVuln/homebridge-lg-thinq](https://github.com/nVuln/homebridge-lg-thinq) that fixes LG account login (`LG pre-login failed: ... 403`, `LG OAuth key lookup failed: ... 404`) on top of 2.0.0-beta.8. Installation, rollback and known limitations: [docs/robotpool-fork.md](docs/robotpool-fork.md) | [简体中文](docs/robotpool-fork.zh-CN.md). The badges and links below refer to the upstream project.
+Homebridge plugin for LG ThinQ appliances with working LG account login, independently maintained by RobotPool.
 
-[![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
-[![npm](https://img.shields.io/npm/v/homebridge-lg-thinq/latest?label=latest)](https://www.npmjs.com/package/homebridge-lg-thinq)
-[![npm](https://img.shields.io/npm/dt/homebridge-lg-thinq)](https://www.npmjs.com/package/homebridge-lg-thinq)
-[![join-discord](https://badgen.net/badge/icon/discord?icon=discord&label=homebridge-lg-thinq)](https://discord.gg/wEfQpCDtS7)
+**English** | [简体中文](README.zh-CN.md)
+
+[![release](https://img.shields.io/github/v/release/RobotPool/homebridge-lg-thinq?include_prereleases&sort=semver)](https://github.com/RobotPool/homebridge-lg-thinq/releases)
+[![build](https://github.com/RobotPool/homebridge-lg-thinq/actions/workflows/build.yml/badge.svg)](https://github.com/RobotPool/homebridge-lg-thinq/actions/workflows/build.yml)
+[![license](https://img.shields.io/github/license/RobotPool/homebridge-lg-thinq)](LICENSE)
+[![stars](https://img.shields.io/github/stars/RobotPool/homebridge-lg-thinq?style=social)](https://github.com/RobotPool/homebridge-lg-thinq/stargazers)
+
+</div>
+
+> Since September 2026, LG account login in `homebridge-lg-thinq@2.0.0-beta.8` fails with `LG pre-login failed: ... 403` or `LG OAuth key lookup failed: ... 404`. This edition fixes both and was verified with a real LG account (US, email/password login, washer and dryer). Install, rollback and known limitations: [docs/robotpool-fork.md](docs/robotpool-fork.md).
+>
+> Based on [nVuln/homebridge-lg-thinq](https://github.com/nVuln/homebridge-lg-thinq) by nVuln and contributors (Apache-2.0). Not affiliated with nVuln or LG Electronics.
 
 ## Overview
 
@@ -24,11 +32,17 @@ This plugin is not an official LG API client. It works with LG ThinQ account dat
 
 ## Installation
 
-Install the plugin from the Homebridge UI, or install it manually:
+Install the latest [release](https://github.com/RobotPool/homebridge-lg-thinq/releases) tarball into your Homebridge storage directory from a terminal on the Homebridge host (Homebridge UI: menu > Terminal):
 
 ```sh
-npm install -g homebridge-lg-thinq
+# Homebridge apt package / Raspberry Pi image
+npm install --prefix /var/lib/homebridge TARBALL_URL
+
+# Official Docker image (homebridge/homebridge)
+npm install --prefix /homebridge TARBALL_URL
 ```
+
+Replace `TARBALL_URL` with the URL of the `.tgz` asset of the release, then restart Homebridge. The package name and the `LGThinQ` platform are the same as upstream, so an existing configuration keeps working. Details and rollback: [docs/robotpool-fork.md](docs/robotpool-fork.md). An npm package for one-click install from the Homebridge UI is planned.
 
 ## Configuration
 
@@ -133,10 +147,10 @@ Commands:
 
 ## Support
 
-If you have a question, start a [discussion](https://github.com/nVuln/homebridge-lg-thinq/discussions/new) or leave a message in the [Discord channel](https://discord.gg/wEfQpCDtS7).
+Questions, bug reports and login results for this edition: open an [issue](https://github.com/RobotPool/homebridge-lg-thinq/issues). Please include the `LG ... failed:` log line; it names the failing step and contains no password or token.
 
-If you would like to report a bug, open an [issue](https://github.com/nVuln/homebridge-lg-thinq/issues/new/choose).
+## Credits
 
-## Contributors
+This project is based on [nVuln/homebridge-lg-thinq](https://github.com/nVuln/homebridge-lg-thinq), created by nVuln and its contributors. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
 Special thanks to [carlosgamezvillegas](https://github.com/carlosgamezvillegas) for implementing Oven and Microwave device support. More detail in [#87](https://github.com/nVuln/homebridge-lg-thinq/issues/87).

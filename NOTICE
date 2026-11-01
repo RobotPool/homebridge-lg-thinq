@@ -30,7 +30,7 @@ Files changed by the RobotPool maintainers (see git history for details):
 
 Files added by the RobotPool maintainers:
 
-  NOTICE, docs/robotpool-fork.md, docs/robotpool-fork.zh-CN.md,
+  NOTICE, README.zh-CN.md, docs/robotpool-fork.md, docs/robotpool-fork.zh-CN.md,
   src/lib/Auth.oauth.spec.ts, src/lib/API.auth.spec.ts,
   src/testing/fakeLgCloud.ts (test-only, not published)
 
