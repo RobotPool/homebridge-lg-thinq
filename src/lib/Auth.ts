@@ -163,9 +163,12 @@ export function parseAuthorizeRedirect(redirectUri: string): { code: string; bac
   throw new TokenError('LG OAuth authorization failed: redirect did not include an authorization code.');
 }
 
-function tokenExpiresIn(value: unknown): number | null {
+// LG access tokens last one hour; used when a token response omits or garbles `expires_in`.
+export const DEFAULT_TOKEN_LIFETIME_SECONDS = 3600;
+
+function tokenExpiresIn(value: unknown): number {
   const seconds = typeof value === 'number' ? value : parseInt(String(value ?? ''), 10);
-  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : DEFAULT_TOKEN_LIFETIME_SECONDS;
 }
 
 /**
@@ -296,16 +299,29 @@ export class Auth {
 
     const redirect = parseAuthorizeRedirect(authorize.redirect_uri);
 
+    return this.exchangeAuthorizationCode(redirect.code, redirect.backendUrl, empData.redirect_uri);
+  }
+
+  /**
+   * Exchanges an EMP OAuth authorization code for access and refresh tokens.
+   *
+   * @param code - The authorization code from the authorize redirect.
+   * @param backendUrl - The `oauth2_backend_url` from the redirect, if any.
+   * @param redirectUri - The redirect URI the code was issued for.
+   * @returns A promise that resolves with a `Session` instance.
+   */
+  public async exchangeAuthorizationCode(code: string, backendUrl: string | null, redirectUri: string) {
+    const timestamp = DateTime.utc().toRFC2822();
     const tokenData = {
-      code: redirect.code,
+      code,
       grant_type: 'authorization_code',
-      redirect_uri: empData.redirect_uri,
+      redirect_uri: redirectUri,
     };
 
     const requestUrl = '/oauth/1.0/oauth2/token?' + qs.stringify(tokenData);
 
     const res = await requestClient.post(
-      (redirect.backendUrl || this.lgeapi_url) + 'oauth/1.0/oauth2/token',
+      (backendUrl || this.lgeapi_url) + 'oauth/1.0/oauth2/token',
       qs.stringify(tokenData),
       {
         headers: {
@@ -325,11 +341,11 @@ export class Auth {
     const refreshToken = stringValue(token?.refresh_token);
     const expiresIn = tokenExpiresIn(token?.expires_in);
 
-    if (!accessToken || !refreshToken || !expiresIn) {
+    if (!accessToken || !refreshToken) {
       throw new TokenError('LG token exchange failed: response did not include access and refresh tokens.');
     }
 
-    this.lgeapi_url = httpsBaseUrl(stringValue(token.oauth2_backend_url)) || redirect.backendUrl || this.lgeapi_url;
+    this.lgeapi_url = httpsBaseUrl(stringValue(token.oauth2_backend_url)) || backendUrl || this.lgeapi_url;
 
     return new Session(
       accessToken,
@@ -500,7 +516,7 @@ export class Auth {
         },
       }).then(res => res.data.lgedmRoot);
 
-      this.lgeapi_url = gateway.oauthUri + '/';
+      this.lgeapi_url = httpsBaseUrl(stringValue(gateway?.oauthUri)) || this.lgeapi_url;
     } catch (err) {
       // ignore this error
     }
@@ -535,7 +551,7 @@ export class Auth {
 
     const accessToken = stringValue(resp?.access_token);
     const expiresIn = tokenExpiresIn(resp?.expires_in);
-    if (!accessToken || !expiresIn) {
+    if (!accessToken) {
       throw new TokenError('LG token refresh failed: response did not include a new access token.');
     }
 

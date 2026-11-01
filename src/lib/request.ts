@@ -90,6 +90,18 @@ export function hideSensitiveRequestDetails<T>(err: T): T {
   return err;
 }
 
+/**
+ * Request URL for debug logs: drops the query string (the SPX signature request
+ * carries the account id in it) and the account id in the EMP session path.
+ */
+export function redactUrlForLog(url: string | undefined): string {
+  if (!url) {
+    return '';
+  }
+
+  return url.split(/[?#]/, 1)[0].replace(/(\/account\/session\/)[^/]+/, '$1<redacted>');
+}
+
 const client = axios.create();
 client.defaults.timeout = 60000; // 60s timeout
 client.defaults.headers.common['User-Agent'] = DEFAULT_USER_AGENT;

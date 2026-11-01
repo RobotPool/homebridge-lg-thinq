@@ -2,10 +2,12 @@ import { describe, test, beforeEach, afterEach, expect } from '@jest/globals';
 import crypto from 'crypto';
 import { inspect } from 'util';
 import type { Logger } from 'homebridge';
-import { Auth, parseAuthorizeRedirect, EMP_SIGNATURE_PARAMS } from './Auth.js';
+import {
+  Auth, BROWSER_LOGIN_REDIRECT_URI, DEFAULT_TOKEN_LIFETIME_SECONDS, EMP_SIGNATURE_PARAMS, parseAuthorizeRedirect,
+} from './Auth.js';
 import { Gateway } from './Gateway.js';
 import { Session } from './Session.js';
-import { DEFAULT_USER_AGENT, requestClient } from './request.js';
+import { DEFAULT_USER_AGENT, redactUrlForLog, requestClient } from './request.js';
 import { AuthenticationError, NotConnectedError, TokenError } from '../errors/index.js';
 import { EMP_BASE, FakeLgCloud, hmac, OAUTH_BACKEND, SPX_BASE } from '../testing/fakeLgCloud.js';
 
@@ -204,6 +206,21 @@ describe('Auth OAuth flow against a simulated LG cloud', () => {
       expectNoSecrets(err, logs);
     });
 
+    test('uses the default token lifetime when expires_in is missing', async () => {
+      lg.overrides.set(`POST ${OAUTH_BACKEND}oauth/1.0/oauth2/token`, () => ({
+        status: 200,
+        data: { access_token: SECRETS.accessToken, refresh_token: SECRETS.refreshToken },
+      }));
+      const before = Math.round(Date.now() / 1000);
+
+      const session = await auth.login(SECRETS.username, SECRETS.password);
+
+      expect(session.hasValidToken()).toBe(true);
+      const expiry = (session as unknown as { expiresIn: number }).expiresIn;
+      expect(expiry - before).toBeGreaterThanOrEqual(DEFAULT_TOKEN_LIFETIME_SECONDS - 2);
+      expect(expiry - before).toBeLessThanOrEqual(DEFAULT_TOKEN_LIFETIME_SECONDS + 2);
+    });
+
     test('rejects a token response without tokens', async () => {
       lg.overrides.set(`POST ${OAUTH_BACKEND}oauth/1.0/oauth2/token`, () => ({ status: 200, data: { status: 1 } }));
 
@@ -266,6 +283,20 @@ describe('Auth OAuth flow against a simulated LG cloud', () => {
       expect(refreshed.accessToken).toBe(SECRETS.refreshedAccessToken);
     });
 
+    test('keeps the current backend when the gateway reply has no oauthUri', async () => {
+      lg.overrides.set('POST https://kic.lgthinq.com:46030/api/common/gatewayUriList', () => ({
+        status: 200,
+        data: { lgedmRoot: { returnCd: '0000' } },
+      }));
+      auth.lgeapi_url = OAUTH_BACKEND;
+
+      const refreshed = await auth.refreshNewToken(new Session('', SECRETS.refreshToken, 0));
+
+      expect(refreshed.accessToken).toBe(SECRETS.refreshedAccessToken);
+      expect(auth.lgeapi_url).toBe(OAUTH_BACKEND);
+      expect(lg.callsTo('/oauth/1.0/oauth2/token')[0].url.origin).toBe('https://us.lgeapi.com');
+    });
+
     test('reports an invalid refresh token as a token error', async () => {
       const err = await captureError(auth.refreshNewToken(new Session('', 'revoked-refresh-token', 0)));
 
@@ -277,6 +308,7 @@ describe('Auth OAuth flow against a simulated LG cloud', () => {
     test('rejects a refresh response without an access token', async () => {
       lg.overrides.set(`POST ${OAUTH_BACKEND}oauth/1.0/oauth2/token`, () => ({ status: 200, data: { expires_in: '3600' } }));
       const session = new Session('old-access', SECRETS.refreshToken, 0);
+      // a refresh response must carry an access token even though expires_in has a default
 
       const err = await captureError(auth.refreshNewToken(session));
 
@@ -295,6 +327,53 @@ describe('Auth OAuth flow against a simulated LG cloud', () => {
       expect(err).toBeInstanceOf(NotConnectedError);
       expectNoSecrets(err, logs);
     });
+  });
+});
+
+describe('browser login code exchange (thinq auth)', () => {
+  let lg: FakeLgCloud;
+
+  beforeEach(() => {
+    lg = new FakeLgCloud(SECRETS);
+    requestClient.defaults.adapter = lg.adapter;
+  });
+
+  afterEach(() => {
+    requestClient.defaults.adapter = originalAdapter;
+  });
+
+  test('exchanges the code from the iabClose redirect for tokens', async () => {
+    const auth = new Auth(makeGateway());
+    const callback = BROWSER_LOGIN_REDIRECT_URI + '?code=auth-code-123&user_number=US1&oauth2_backend_url='
+      + encodeURIComponent(OAUTH_BACKEND);
+
+    const redirect = parseAuthorizeRedirect(callback);
+    const session = await auth.exchangeAuthorizationCode(redirect.code, redirect.backendUrl, BROWSER_LOGIN_REDIRECT_URI);
+
+    expect(session.refreshToken).toBe(SECRETS.refreshToken);
+    const [tokenCall] = lg.callsTo('/oauth/1.0/oauth2/token');
+    expect(new URLSearchParams(tokenCall.body).get('redirect_uri')).toBe(BROWSER_LOGIN_REDIRECT_URI);
+    // the browser path never touches the SPX key services
+    expect(lg.callsTo('/spx/signature')).toHaveLength(0);
+  });
+
+  test('reports an expired or reused code', async () => {
+    const auth = new Auth(makeGateway());
+
+    const err = await captureError(auth.exchangeAuthorizationCode('used-code', OAUTH_BACKEND, BROWSER_LOGIN_REDIRECT_URI));
+
+    expect(err).toBeInstanceOf(AuthenticationError);
+    expect(err.message).toBe('LG token exchange failed: The refresh token is invalid.');
+  });
+});
+
+describe('redactUrlForLog', () => {
+  test('drops query strings and the account id in the session path', () => {
+    expect(redactUrlForLog(`${SPX_BASE}/signature?kind=oauth2&timestamp=%2Femp%3Fusername%3Da%40b.c`))
+      .toBe(`${SPX_BASE}/signature`);
+    expect(redactUrlForLog(`${EMP_BASE}/emp/v2.0/account/session/a%40b.c`))
+      .toBe(`${EMP_BASE}/emp/v2.0/account/session/<redacted>`);
+    expect(redactUrlForLog(undefined)).toBe('');
   });
 });
 
