@@ -35,39 +35,43 @@ Also included: validation of the login, signature, authorize, token exchange and
 
 Requirements are unchanged: Homebridge `^1.11.2` or `^2.0.0`, Node.js `^22.13.0` or `^24.0.0`.
 
-The fork keeps the package name `homebridge-lg-thinq` and the platform name `LGThinQ`, so your existing configuration, refresh token and cached accessories keep working. It is installed from the GitHub Release tarball, not from the npm registry (an npm package for one-click install from the Homebridge UI is planned).
+### New installation
 
-1. Open the [latest release](https://github.com/RobotPool/homebridge-lg-thinq/releases) and copy the URL of the `homebridge-lg-thinq-<version>.tgz` asset. Optionally compare its SHA-256 with the value in the release notes.
-2. Open a terminal on the Homebridge host (Homebridge UI: menu > Terminal) and install into your Homebridge storage directory:
+In Homebridge UI open **Plugins**, search for `@robotpool/homebridge-lg-thinq`, and install **Homebridge LG ThinQ** published by RobotPool. Then configure it as described in the [README](../README.md#configuration).
 
-   ```sh
-   # Homebridge apt package / Raspberry Pi image
-   npm install --prefix /var/lib/homebridge TARBALL_URL
+From a terminal: `npm install --prefix /var/lib/homebridge @robotpool/homebridge-lg-thinq` (Docker: `--prefix /homebridge`).
 
-   # Official Docker image (homebridge/homebridge)
-   npm install --prefix /homebridge TARBALL_URL
-   ```
+### Switching from `homebridge-lg-thinq`
 
-   Replace `TARBALL_URL` with the URL from step 1. Use your own storage path if it differs.
-3. Restart Homebridge, or the LG ThinQ child bridge.
-4. Check the log for `Successfully connected to the ThinQ API.`
+The platform name `LGThinQ` is the same, so your configuration, refresh token and devices are reused. Two plugins cannot register the same platform, so remove the old package first:
 
-To check the installed version: `npm ls --prefix /var/lib/homebridge homebridge-lg-thinq` (or `/homebridge`).
+1. Optional: Homebridge UI > menu > Backup.
+2. Plugins > Homebridge LG ThinQ (`homebridge-lg-thinq`) > menu > **Uninstall**. If asked whether to remove its configuration, **keep it**.
+3. Install `@robotpool/homebridge-lg-thinq` as above.
+4. Restart Homebridge and check the log for `Successfully connected to the ThinQ API.`
+
+The old package registered its accessories under its own name. After the switch Homebridge may remove and re-add them, so you may need to assign rooms, names or automations again in the Home app.
+
+To check the installed version: `npm ls --prefix /var/lib/homebridge @robotpool/homebridge-lg-thinq` (or `/homebridge`).
+
+### Release tarball
+
+Each [GitHub Release](https://github.com/RobotPool/homebridge-lg-thinq/releases) also carries the package as a `.tgz` with its SHA-256: `npm install --prefix /var/lib/homebridge TARBALL_URL`.
 
 Notes:
 
-* The fork version `2.0.0-beta.8.robotpool.1` sorts above upstream `2.0.0-beta.8` and below a future `2.0.0-beta.9`, so Homebridge UI may offer a newer upstream release as an update. Installing it replaces this fork; check that the release contains the login fix first.
 * If password login still fails, token mode is an alternative: run `thinq auth`, sign in in the browser, paste the final `https://kr.m.lgaccount.com/login/iabClose?...` URL back (the CLI exchanges the authorization code it contains, or reads a third-party token), and set `auth_mode: "token"` with the printed `refresh_token`.
 
 ## Rollback
 
-Nothing in your configuration or Homebridge storage is migrated, so rolling back only reinstalls the upstream package:
+Nothing in your configuration or Homebridge storage is migrated. Uninstall `@robotpool/homebridge-lg-thinq` (keep the configuration), then install the upstream package and restart Homebridge:
 
 ```sh
+npm uninstall --prefix /var/lib/homebridge @robotpool/homebridge-lg-thinq
 npm install --prefix /var/lib/homebridge homebridge-lg-thinq@2.0.0-beta.8
 ```
 
-(Use `/homebridge` for Docker.) Or in Homebridge UI: Plugins > Homebridge LG ThinQ > menu > Install Alternate Version > `2.0.0-beta.8`. Restart Homebridge afterwards.
+(Use `/homebridge` for Docker.) Upstream 2.0.0-beta.8 has the login bug this edition fixes; an existing refresh token keeps working there until it expires.
 
 ## Known limitations
 
