@@ -42,6 +42,23 @@ jobs:
             exit 1
           fi
 
+      # A version published by hand (the first release) or by an earlier run
+      # is skipped, so re-publishing a release does not fail. Any registry
+      # answer other than 200 or 404 fails the job instead of guessing.
+      - name: Check whether this version is already on npm
+        id: registry
+        run: |
+          name="$(node -p 'require("./package.json").name')"
+          version="$(node -p 'require("./package.json").version')"
+          url="https://registry.npmjs.org/${name/\//%2f}/${version}"
+          status="$(curl -sS -o /dev/null -w '%{http_code}' "$url")"
+          case "$status" in
+            200) echo "$name@$version is already on npm; skipping publish"
+                 echo "published=true" >> "$GITHUB_OUTPUT" ;;
+            404) echo "published=false" >> "$GITHUB_OUTPUT" ;;
+            *)   echo "Unexpected registry status $status for $url" >&2; exit 1 ;;
+          esac
+
       - name: Install dependencies (npm ci)
         run: npm ci
 
@@ -56,9 +73,11 @@ jobs:
 
       # Trusted publishing needs npm 11.5.1 or later
       - name: Update npm
+        if: steps.registry.outputs.published == 'false'
         run: npm install -g npm@^11.5.1
 
       # Versions such as 2.0.0-robotpool.1 are prereleases; publish them as
       # latest so Homebridge UI offers them
       - name: Publish
+        if: steps.registry.outputs.published == 'false'
         run: npm publish --access public --tag latest
