@@ -9,6 +9,7 @@
 **简体中文** | [English](README.md)
 
 [![release](https://img.shields.io/github/v/release/RobotPool/homebridge-lg-thinq?include_prereleases&sort=semver)](https://github.com/RobotPool/homebridge-lg-thinq/releases)
+[![npm](https://img.shields.io/npm/v/@robotpool/homebridge-lg-thinq?label=npm)](https://www.npmjs.com/package/@robotpool/homebridge-lg-thinq)
 [![build](https://github.com/RobotPool/homebridge-lg-thinq/actions/workflows/build.yml/badge.svg)](https://github.com/RobotPool/homebridge-lg-thinq/actions/workflows/build.yml)
 [![license](https://img.shields.io/github/license/RobotPool/homebridge-lg-thinq)](LICENSE)
 [![stars](https://img.shields.io/github/stars/RobotPool/homebridge-lg-thinq?style=social)](https://github.com/RobotPool/homebridge-lg-thinq/stargazers)
@@ -32,17 +33,13 @@ Homebridge LG ThinQ 是用来控制和监控 LG ThinQ 家电的 Homebridge 平�
 
 ## 安装
 
-在 Homebridge 主机的终端（Homebridge UI：菜单 > 终端）中，把最新 [Release](https://github.com/RobotPool/homebridge-lg-thinq/releases) 的安装包装到 Homebridge 存储目录：
+在 Homebridge UI 中打开 **插件**，搜索 `@robotpool/homebridge-lg-thinq` 并安装；也可以在终端运行：
 
 ```sh
-# Homebridge apt 安装包 / 树莓派镜像
-npm install --prefix /var/lib/homebridge TARBALL_URL
-
-# 官方 Docker 镜像（homebridge/homebridge）
-npm install --prefix /homebridge TARBALL_URL
+npm install --prefix /var/lib/homebridge @robotpool/homebridge-lg-thinq   # Docker 用 --prefix /homebridge
 ```
 
-把 `TARBALL_URL` 换成 Release 中 `.tgz` 附件的链接，然后重启 Homebridge。包名和平台名 `LGThinQ` 与上游相同，现有配置可以继续使用。详细步骤和回滚方法见 [docs/robotpool-fork.zh-CN.md](docs/robotpool-fork.zh-CN.md)。可在 Homebridge UI 一键安装的 npm 包正在计划中。
+从 `homebridge-lg-thinq` 切换过来：先卸载旧包并保留配置。平台名 `LGThinQ` 相同，配置会沿用。详细步骤、回滚方法和 Release 安装包见 [docs/robotpool-fork.zh-CN.md](docs/robotpool-fork.zh-CN.md)。
 
 ## 配置
 

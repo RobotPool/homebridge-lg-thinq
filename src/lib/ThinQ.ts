@@ -9,7 +9,7 @@ import { PlatformType } from './constants.js';
 import { DeviceModel, loadDeviceModelForDevice } from './DeviceModel.js';
 import * as Path from 'path';
 import Helper from '../v1/helper.js';
-import { PLUGIN_NAME } from '../settings.js';
+import { STORAGE_DIR_NAME } from '../settings.js';
 import { device as awsIotDevice } from 'aws-iot-device-sdk';
 import Persist from './Persist.js';
 import { coerceCommandPayload } from './commandPayload.js';
@@ -52,7 +52,7 @@ export class ThinQ {
       this.api.setUsernamePassword(config.username, config.password);
     }
 
-    this.persist = new Persist(Path.join(this.platform.api.user.storagePath(), PLUGIN_NAME, 'persist', 'devices'));
+    this.persist = new Persist(Path.join(this.platform.api.user.storagePath(), STORAGE_DIR_NAME, 'persist', 'devices'));
   }
 
   public async devices() {
@@ -166,7 +166,7 @@ export class ThinQ {
     });
 
     const connectToMqtt = async () => {
-      const mqttDir = Path.join(this.platform.api.user.storagePath(), PLUGIN_NAME, 'persist', 'mqtt');
+      const mqttDir = Path.join(this.platform.api.user.storagePath(), STORAGE_DIR_NAME, 'persist', 'mqtt');
       const connection = await prepareMqttConnection({
         api: this.api,
         setup,

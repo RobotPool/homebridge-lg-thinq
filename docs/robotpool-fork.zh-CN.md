@@ -35,39 +35,43 @@ LG OAuth key lookup failed: Request failed with status code 404
 
 运行要求不变：Homebridge `^1.11.2` 或 `^2.0.0`，Node.js `^22.13.0` 或 `^24.0.0`。
 
-本版本保留包名 `homebridge-lg-thinq` 和平台名 `LGThinQ`，现有配置、refresh token 和已缓存的配件都可以继续使用。安装来源是 GitHub Release 中的 tarball，而不是 npm 仓库（可在 Homebridge UI 一键安装的 npm 包正在计划中）。
+### 全新安装
 
-1. 打开[最新 Release](https://github.com/RobotPool/homebridge-lg-thinq/releases)，复制附件 `homebridge-lg-thinq-<版本>.tgz` 的链接。可选：与发布说明中的 SHA-256 值比对。
-2. 在 Homebridge 主机上打开终端（Homebridge UI：菜单 > 终端），安装到 Homebridge 存储目录：
+在 Homebridge UI 中打开 **插件**，搜索 `@robotpool/homebridge-lg-thinq`，安装 RobotPool 发布的 **Homebridge LG ThinQ**，然后按 [README](../README.zh-CN.md#配置) 配置。
 
-   ```sh
-   # Homebridge apt 安装包 / 树莓派镜像
-   npm install --prefix /var/lib/homebridge TARBALL_URL
+也可以在终端运行：`npm install --prefix /var/lib/homebridge @robotpool/homebridge-lg-thinq`（Docker 用 `--prefix /homebridge`）。
 
-   # 官方 Docker 镜像（homebridge/homebridge）
-   npm install --prefix /homebridge TARBALL_URL
-   ```
+### 从 `homebridge-lg-thinq` 切换过来
 
-   把 `TARBALL_URL` 换成第 1 步复制的链接。存储路径不同的话，换成你自己的路径。
-3. 重启 Homebridge，或重启 LG ThinQ 子桥。
-4. 在日志中确认出现 `Successfully connected to the ThinQ API.`
+平台名 `LGThinQ` 不变，现有配置、refresh token 和设备都会沿用。两个插件不能注册同一个平台，所以要先卸载旧包：
 
-查看已安装版本：`npm ls --prefix /var/lib/homebridge homebridge-lg-thinq`（Docker 用 `/homebridge`）。
+1. 可选：Homebridge UI > 菜单 > 备份。
+2. 插件 > Homebridge LG ThinQ（`homebridge-lg-thinq`）> 菜单 > **卸载**。如果询问是否删除配置，选择**保留**。
+3. 按上面的方法安装 `@robotpool/homebridge-lg-thinq`。
+4. 重启 Homebridge，在日志中确认出现 `Successfully connected to the ThinQ API.`
+
+旧包是用它自己的包名注册配件的。切换后 Homebridge 可能会移除并重新添加这些配件，届时可能需要在"家庭" App 里重新设置房间、名称或自动化。
+
+查看已安装版本：`npm ls --prefix /var/lib/homebridge @robotpool/homebridge-lg-thinq`（Docker 用 `/homebridge`）。
+
+### Release 安装包
+
+每个 [GitHub Release](https://github.com/RobotPool/homebridge-lg-thinq/releases) 也附带 `.tgz` 安装包及其 SHA-256：`npm install --prefix /var/lib/homebridge TARBALL_URL`。
 
 注意：
 
-* 本版本号 `2.0.0-beta.8.robotpool.1` 高于上游 `2.0.0-beta.8`、低于将来的 `2.0.0-beta.9`，所以上游发布新版本时 Homebridge UI 可能会提示更新。安装新版本会覆盖本版本，安装前请确认它已包含登录修复。
 * 如果密码登录仍然失败，可以改用 Token 模式：运行 `thinq auth`，在浏览器中登录，把最终跳转到的 `https://kr.m.lgaccount.com/login/iabClose?...` 地址粘贴回终端（CLI 会用其中的授权码换取 Token，或读取第三方登录 Token），然后设置 `auth_mode: "token"`，填入输出的 `refresh_token`。
 
 ## 回滚
 
-本版本不会迁移任何配置或 Homebridge 存储数据，回滚只需重新安装上游包：
+本版本不会迁移任何配置或 Homebridge 存储数据。卸载 `@robotpool/homebridge-lg-thinq`（保留配置），再安装上游包并重启 Homebridge：
 
 ```sh
+npm uninstall --prefix /var/lib/homebridge @robotpool/homebridge-lg-thinq
 npm install --prefix /var/lib/homebridge homebridge-lg-thinq@2.0.0-beta.8
 ```
 
-（Docker 用 `/homebridge`。）也可以在 Homebridge UI 中操作：插件 > Homebridge LG ThinQ > 菜单 > 安装其他版本 > `2.0.0-beta.8`。完成后重启 Homebridge。
+（Docker 用 `/homebridge`。）上游 2.0.0-beta.8 仍有本版本修复的登录问题；已有的 refresh token 在过期前仍可使用。
 
 ## 已知限制
 

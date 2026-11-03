@@ -1,7 +1,7 @@
 {
   "displayName": "Homebridge LG ThinQ",
-  "name": "homebridge-lg-thinq",
-  "version": "2.0.0-beta.8.robotpool.1",
+  "name": "@robotpool/homebridge-lg-thinq",
+  "version": "2.0.0-robotpool.1",
   "description": "A Homebridge plugin for controlling/monitoring LG ThinQ devices via LG ThinQ platform.",
   "license": "Apache-2.0",
   "type": "module",
@@ -35,6 +35,7 @@
   },
   "keywords": [
     "homebridge-plugin",
+    "homebridge",
     "homekit",
     "lg",
     "lg-thinq"
@@ -58,7 +59,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.2"
   },
-  "homepage": "https://github.com/nVuln/homebridge-lg-thinq#readme",
+  "homepage": "https://github.com/RobotPool/homebridge-lg-thinq#readme",
   "author": "nVuln",
   "dependencies": {
     "@homebridge/plugin-ui-utils": "^2.2.3",

@@ -1,6 +1,13 @@
 # Change Log
 
-## Unreleased
+## v2.0.0-robotpool.1
+
+First release of the RobotPool edition on npm as `@robotpool/homebridge-lg-thinq`. It contains the authentication and security changes below on top of upstream 2.0.0.
+
+### Packaging
+
+* Published as `@robotpool/homebridge-lg-thinq` so Homebridge UI can install it. The platform name is still `LGThinQ`, so an existing configuration keeps working; uninstall `homebridge-lg-thinq` first, because two plugins cannot register the same platform.
+* Device and MQTT caches stay in `<storage>/homebridge-lg-thinq/persist`.
 
 ### Authentication
 
