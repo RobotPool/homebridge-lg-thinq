@@ -1,14 +1,14 @@
 <div align="center">
 
-# Homebridge LG ThinQ - RobotPool maintenance fork
+# Homebridge LG ThinQ - RobotPool edition
 
-LG account login fix for `homebridge-lg-thinq` 2.0.0-beta.8, maintained in the open until it lands upstream.
+LG account login fix for `homebridge-lg-thinq` 2.0.0-beta.8, independently maintained by RobotPool.
 
 [简体中文](robotpool-fork.zh-CN.md) | **English**
 
 </div>
 
-## What this fork fixes
+## What this edition fixes
 
 Since September 2026, LG account (email/password) login in `homebridge-lg-thinq@2.0.0-beta.8` fails with one of:
 
@@ -29,13 +29,13 @@ Also included: validation of the login, signature, authorize, token exchange and
 | Protocol | Taken from LG's public SPX login page JavaScript and matched against community reports (ollo69/ha-smartthinq-sensors#1016, nVuln/homebridge-lg-thinq#402) |
 | Automated tests | Login, token exchange and refresh against a simulated LG cloud that checks signatures; 403, 404 and error paths; secret redaction |
 | Node.js | Lint, build and the full test suite pass on Node.js 22 and 24 (the versions the plugin supports) |
-| Real LG account | **Not verified by the maintainers.** The maintainers did not log in to a real LG account. Please report results in the issue tracker. |
+| Real LG account | **Verified on 2026-11-01** with a US account: email/password login from the Homebridge UI settings page (Homebridge 2.4.0, Docker), then token mode after a restart; a washer and a dryer were discovered and the MQTT connection came up. Other regions are not verified yet; please report results in the [issue tracker](https://github.com/RobotPool/homebridge-lg-thinq/issues). |
 
 ## Installation
 
 Requirements are unchanged: Homebridge `^1.11.2` or `^2.0.0`, Node.js `^22.13.0` or `^24.0.0`.
 
-The fork keeps the package name `homebridge-lg-thinq` and the platform name `LGThinQ`, so your existing configuration, refresh token and cached accessories keep working. It is installed from the GitHub Release tarball, not from the npm registry.
+The fork keeps the package name `homebridge-lg-thinq` and the platform name `LGThinQ`, so your existing configuration, refresh token and cached accessories keep working. It is installed from the GitHub Release tarball, not from the npm registry (an npm package for one-click install from the Homebridge UI is planned).
 
 1. Open the [latest release](https://github.com/RobotPool/homebridge-lg-thinq/releases) and copy the URL of the `homebridge-lg-thinq-<version>.tgz` asset. Optionally compare its SHA-256 with the value in the release notes.
 2. Open a terminal on the Homebridge host (Homebridge UI: menu > Terminal) and install into your Homebridge storage directory:
@@ -71,7 +71,7 @@ npm install --prefix /var/lib/homebridge homebridge-lg-thinq@2.0.0-beta.8
 
 ## Known limitations
 
-* Real LG cloud login has not been verified by the maintainers (see above). The fix follows LG's public login page and one community report of a successful login (Italian account, 2026-10-28).
+* Real LG cloud login is verified for one US account (see above). Other regions rely on LG's public login page and community reports (an Italian account logged in successfully on 2026-10-28).
 * `lgemp-x-date` uses the Homebridge host clock. A host clock that is far off can make LG reject the signature.
 * Some regions reported `EMP processing error.` at the authorize step even with valid signatures (Israel, ha-smartthinq-sensors#1016). This fork does not change that step.
 * Accounts that sign in with Apple, Google or Facebook cannot use password mode; use token mode.
@@ -79,4 +79,4 @@ npm install --prefix /var/lib/homebridge homebridge-lg-thinq@2.0.0-beta.8
 
 ## Relationship to upstream
 
-This fork exists so users can install the fix while it is reviewed upstream. The fix is submitted to [nVuln/homebridge-lg-thinq](https://github.com/nVuln/homebridge-lg-thinq); once an upstream release contains it, switch back to the official package. Copyright and license: [LICENSE](../LICENSE) (Apache-2.0) and [NOTICE](../NOTICE).
+This edition is maintained independently by RobotPool. It is based on [nVuln/homebridge-lg-thinq](https://github.com/nVuln/homebridge-lg-thinq) by nVuln and contributors, and is not affiliated with nVuln or LG Electronics. Copyright and license: [LICENSE](../LICENSE) (Apache-2.0) and [NOTICE](../NOTICE), which lists the files changed here.
