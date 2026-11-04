@@ -1,3 +1,5 @@
+// Modified by the RobotPool maintainers (https://github.com/RobotPool/homebridge-lg-thinq):
+// see NOTICE and the git history for the changes made to this file.
 import * as constants from './constants.js';
 import { URL } from 'url';
 
@@ -44,6 +46,7 @@ export class API {
   protected jsessionId!: string;
   protected auth!: Auth;
   protected userNumber!: string;
+  protected manualProcessReported = false;
 
   protected username!: string;
   protected password!: string;
@@ -123,22 +126,17 @@ export class API {
           return {};
         });
       } else if (err instanceof ManualProcessNeeded) {
-        // Handle manual process errors (e.g., new terms agreement)
-        this.logger.warn('Handling new term agreement... If you keep getting this message, ' + err.message);
-        await this.auth.handleNewTerm(this.session.accessToken)
-          .then(() => {
-            this.logger.warn('LG new term agreement is accepted.');
-          })
-          .catch(err => {
-            this.logger.error(err);
-          });
-
-        if (!retry) {
-          // Retry the request once
-          return await this.request(method, uri, data, true);
+        // LG wants the account owner to accept new terms. The plugin used to
+        // accept them itself through common/showTerms, which LG has retired
+        // (404), and accepting terms is the owner's decision anyway.
+        if (!this.manualProcessReported) {
+          this.manualProcessReported = true;
+          this.logger.error(err.message);
         } else {
-          return {};
+          this.logger.debug(err.message);
         }
+
+        return {};
       } else {
         // Log other errors
         if (err instanceof NotConnectedError) {

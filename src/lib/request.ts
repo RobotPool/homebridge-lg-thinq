@@ -4,6 +4,7 @@ import axios, { AxiosInstance } from 'axios';
 import {
   ManualProcessNeeded,
   ManualProcessNeededErrorCode,
+  ManualProcessNeededMessage,
   MonitorError,
   NotConnectedError,
   TokenExpiredErrorCode,
@@ -169,8 +170,7 @@ client.interceptors.response.use((response) => {
     throw errorWithCause(new TokenExpiredError(responseErrorMessage(err, 'ThinQ token expired.')), err);
   } else if (err.response.data?.resultCode === ManualProcessNeededErrorCode) {
     throw errorWithCause(
-      new ManualProcessNeeded('Please open the native LG App and sign in to your account to see what happened, ' +
-        'maybe new agreement need your accept. Then try restarting Homebridge.'),
+      new ManualProcessNeeded(ManualProcessNeededMessage),
       err,
     );
   }
