@@ -1,5 +1,11 @@
 # Change Log
 
+## v2.0.0-robotpool.2
+
+### Fixes
+
+* When LG answers with result code `0110` (new terms or notices to accept), the plugin no longer tries to accept them itself through LG's retired `common/showTerms` endpoint, which failed with `AxiosError: Request failed with status code 404` and repeated `Handling new term agreement...` warnings. It now logs once: open the LG ThinQ app, sign out and in again, accept what it shows, then restart Homebridge. Accepting terms is left to the account owner.
+
 ## v2.0.0-robotpool.1
 
 First release of the RobotPool edition on npm as `@robotpool/homebridge-lg-thinq`. It contains the authentication and security changes below on top of upstream 2.0.0.

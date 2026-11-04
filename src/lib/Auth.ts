@@ -7,6 +7,7 @@ import { URL } from 'url';
 import {
   AuthenticationError,
   ManualProcessNeededErrorCode,
+  ManualProcessNeededMessage,
   NotConnectedError,
   TokenError,
   TokenExpiredError,
@@ -410,55 +411,6 @@ export class Auth {
   }
 
   /**
-   * Handles new terms and conditions that require user agreement.
-   *
-   * @param accessToken - The access token for the session.
-   */
-  public async handleNewTerm(accessToken: string) {
-    const showTermUrl = 'common/showTerms?callback_url=lgaccount.lgsmartthinq:/updateTerms'
-      + '&country=VN&language=en-VN&division=ha:T20&terms_display_type=3&svc_list=SVC202';
-    const showTermHtml = await requestClient.get(this.gateway.login_base_url + showTermUrl, {
-      headers: {
-        'X-Login-Session': accessToken,
-      },
-    }).then(res => res.data);
-
-    const headers = {
-      ...this.defaultEmpHeaders,
-      'X-Login-Session': accessToken,
-      'X-Signature': showTermHtml.match(/signature[\s]+:[\s]+"([^"]+)"/)[1],
-      'X-Timestamp': showTermHtml.match(/tStamp[\s]+:[\s]+"([^"]+)"/)[1],
-    };
-
-    const accountTermUrl = 'emp/v2.0/account/user/terms?opt_term_cond=001&term_data=SVC202&itg_terms_use_flag=Y&dummy_terms_use_flag=Y';
-    const accountTerms = (await requestClient.get(this.gateway.emp_base_url + accountTermUrl, { headers })
-      .then(res => {
-        return res.data.account?.terms;
-      }))
-      .map((term: any) => {
-        return term.termsID;
-      });
-
-    const termInfoUrl = 'emp/v2.0/info/terms?opt_term_cond=001&only_service_terms_flag=&itg_terms_use_flag=Y&term_data=SVC202';
-    const infoTerms = await requestClient.get(this.gateway.emp_base_url + termInfoUrl, { headers }).then(res => {
-      return res.data.info.terms;
-    });
-
-    const newTermAgreeNeeded = infoTerms.filter((term: any) => {
-      return accountTerms.indexOf(term.termsID) === -1;
-    }).map((term: any) => {
-      return [term.termsType, term.termsID, term.defaultLang].join(':');
-    }).join(',');
-
-    if (newTermAgreeNeeded) {
-      const updateAccountTermUrl = 'emp/v2.0/account/user/terms';
-      await requestClient.post(this.gateway.emp_base_url + updateAccountTermUrl, qs.stringify({ terms: newTermAgreeNeeded }), {
-        headers,
-      });
-    }
-  }
-
-  /**
    * Retrieves the JSession ID for ThinQ v1 API compatibility.
    *
    * @param accessToken - The access token for the session.
@@ -488,10 +440,7 @@ export class Auth {
       .catch(err => {
         const message = typeof err?.message === 'string' ? err.message : String(err);
         this.logger.debug(
-          message.startsWith(ManualProcessNeededErrorCode)
-            ? 'Please open the native LG App and sign in to your account to see what happened,'
-            + ' maybe new agreement need your accept. Then try restarting Homebridge.'
-            : message,
+          message.startsWith(ManualProcessNeededErrorCode) ? ManualProcessNeededMessage : message,
         );
         this.logger.info('Failed to login to old thinq v1 gateway. See debug logs for more details. Continuing anyways.');
       });

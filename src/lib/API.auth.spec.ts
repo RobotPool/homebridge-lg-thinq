@@ -4,6 +4,7 @@ import type { Logger } from 'homebridge';
 import { API } from './API.js';
 import * as constants from './constants.js';
 import { requestClient } from './request.js';
+import { ManualProcessNeededMessage } from '../errors/index.js';
 import { EMP_BASE, FakeLgCloud, OAUTH_BACKEND, SPX_BASE } from '../testing/fakeLgCloud.js';
 
 const originalAdapter = requestClient.defaults.adapter;
@@ -147,6 +148,40 @@ describe('API authentication with a simulated LG cloud', () => {
     for (const secret of ['revoked-refresh-token', SECRETS.cookie, constants.API_KEY]) {
       expect(text).not.toContain(secret);
     }
+  });
+
+  test('new LG terms (0110) are reported once and never accepted automatically', async () => {
+    let homeCalls = 0;
+    lg.overrides.set(`GET ${THINQ2}/service/homes/home-1`, () => {
+      homeCalls++;
+      return { status: 400, data: { resultCode: '0110', result: 'need to agree new terms' } };
+    });
+
+    const levels: string[] = [];
+    const logger = makeLogger(logs) as unknown as Record<string, (...args: unknown[]) => void>;
+    for (const level of ['error', 'debug']) {
+      const write = logger[level];
+      logger[level] = (...args: unknown[]) => {
+        if (args[0] === ManualProcessNeededMessage) {
+          levels.push(level);
+        }
+        write(...args);
+      };
+    }
+    const api = new API('AU', 'en-AU', logger as unknown as Logger);
+    api.setUsernamePassword(SECRETS.username, SECRETS.password);
+    await api.ready();
+
+    await expect(api.getListDevices()).rejects.toThrow();
+    await expect(api.getListDevices()).rejects.toThrow();
+
+    // no retry and no call to the retired terms endpoints
+    expect(homeCalls).toBe(2);
+    expect(lg.calls.filter(call => /showTerms|\/terms/.test(call.url.pathname))).toHaveLength(0);
+    // shown once as an error, repeats only in the debug log
+    expect(levels).toEqual(['error', 'debug']);
+    expect(logs.join('\n')).not.toContain('Handling new term agreement');
+    expect(logs.join('\n')).not.toContain(SECRETS.accessToken);
   });
 
   test('request errors logged by the API do not contain tokens, cookies or the password', async () => {

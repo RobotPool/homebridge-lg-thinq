@@ -26,6 +26,8 @@ Files changed by the RobotPool maintainers (see git history for details):
   src/lib/Auth.spec.ts     signature mock instead of searchKey
   src/lib/request.spec.ts  User-Agent and redaction tests
   src/settings.ts          npm package name; cache directory constant
+  src/lib/API.ts           no automatic terms acceptance; one clear message
+  src/errors/ManualProcessNeeded.ts  shared terms message
   src/platformAccessories.spec.ts  package name in expectations
   tsconfig.json            exclude src/testing from the build
   CHANGELOG.md, README.md, package.json, package-lock.json (name and version)
